@@ -1,0 +1,21 @@
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - |
+        echo "$$SSHKEY"
+        git clone "https://gcloud:$(echo "$$SSHKEY")@github.com/djay21/abc.git"
+        cd abc*/
+        ls -la 
+        ls -lart
+        pwd 
+    entrypoint: bash
+    secretEnv:
+      - SSHKEY
+timeout: 3600s
+options:
+  logging: CLOUD_LOGGING_ONLY
+availableSecrets:
+  secretManager:
+    - versionName: projects/PROJECT_NUMBER/secrets/SECRET_NAME/versions/1
+      env: SSHKEY

@@ -1,0 +1,42 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "develop" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"
+      variables:
+        PROJECT: $DEV_PROJECT
+        BUCKET: $DEV_BUCKET
+        KEY: $DEV_KEY
+        COMPOSER_NAME: $DEV_COMPOSER_NAME
+    - if: $CI_COMMIT_REF_NAME == "staging" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "staging"
+      variables:
+        PROJECT: $STG_PROJECT
+        BUCKET: $STG_BUCKET
+        KEY: $STG_KEY
+        COMPOSER_NAME: $STG_COMPOSER_NAME
+    - if: $CI_COMMIT_REF_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+      variables:
+        PROJECT: $PROD_PROJECT
+        BUCKET: $PROD_BUCKET
+        KEY: $PROD_KEY
+        COMPOSER_NAME: $PROD_COMPOSER_NAME
+    - when: always
+
+
+stages:
+  - publish-artifacts
+
+push-artifacts-to-gcs:
+  stage: publish-artifacts
+  image: google/cloud-sdk:alpine
+  before_script:
+    - echo $KEY > /tmp/key.json
+    - gcloud auth activate-service-account --key-file=/tmp/key.json
+    - gcloud config set project $PROJECT
+  script:
+    - rm -rf *.yml
+    - composer_bucket=$(gcloud composer environments describe $COMPOSER_NAME --location $REGION | grep dag | cut -d ' ' -f 4)
+    - echo $composer_bucket
+    - gsutil cp -r * "${composer_bucket}"
+  only:
+    - develop
+    - main
+    - staging
