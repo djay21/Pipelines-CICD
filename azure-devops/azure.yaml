@@ -1,0 +1,163 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+name: nrval-1.0.$(Rev:rrrrr)
+trigger:
+  branches:
+   include:
+     - feature/nginx-update
+     
+  paths:
+    include:
+      - DEPLOYER.API.Gateway/*
+      - DEPLOYER.Users.Domain/*
+      - DEPLOYER.Users.Infrastructure/*
+      - DEPLOYER.Users.Application/*
+      - DEPLOYER.Users.API/*
+      - DEPLOYER.Interactions.API/*
+      - DEPLOYER.Interactions.Infrastructure/*
+      - DEPLOYER.Interactions.Domain/*
+      - DEPLOYER.Interactions.Application/*
+      - DEPLOYER.FrameworkComponents/*
+      - DEPLOYER.ExternalIntegration/*      
+
+
+
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  containerRegistry: 'deployer.azurecr.io'
+  tag: '$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: 'ApiGateway'
+  displayName: Api-Gateway
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployer -p $(REGISTRYPASSWORD)
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/gatewayapi:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.API.Gateway/Dockerfile $(Build.SourcesDirectory)
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/gatewayapi:$(tag)
+      displayName: 'Building and Pushing api-gateway-svc'
+
+- stage: 'InteractionsApi'
+  displayName: Interactions-api
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployer -p $(REGISTRYPASSWORD)
+
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/inter:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.Interactions.API/Dockerfile $(Build.SourcesDirectory)
+
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/inter:$(tag)
+      displayName: 'Building and Pushing Interactions-api'
+
+- stage: 'UsersAPI'
+  displayName: Users-api
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployer -p $(REGISTRYPASSWORD)
+
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/cvsusersapi:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.Users.API/Dockerfile $(Build.SourcesDirectory)
+
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/cvsusersapi:$(tag)
+      displayName: 'Building and Pushing Users-api'
+
+
+stages:
+- stage: 'ApiGateway'
+  displayName: Api-Gateway
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployerv2 -p $(REGISTRYPASSWORD)
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/gatewayapi:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.API.Gateway/Dockerfile $(Build.SourcesDirectory)
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/gatewayapi:$(tag)
+      displayName: 'Building and Pushing api-gateway-svc'
+
+- stage: 'InteractionsApi'
+  displayName: Interactions-api
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployerv2 -p $(REGISTRYPASSWORD)
+
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/inter:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.Interactions.API/Dockerfile $(Build.SourcesDirectory)
+
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/inter:$(tag)
+      displayName: 'Building and Pushing Interactions-api'
+
+- stage: 'UsersAPI'
+  displayName: Users-api
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Logging into ACR..."
+        docker login $(containerRegistry) -u deployerv2 -p $(REGISTRYPASSWORD)
+
+        echo "Building Docker image..."
+        docker build -t $(containerRegistry)/cvsusersapi:$(tag) -f $(Build.SourcesDirectory)/DEPLOYER.Users.API/Dockerfile $(Build.SourcesDirectory)
+
+        echo "Pushing Docker image to ACR..."
+        docker push $(containerRegistry)/cvsusersapi:$(tag)
+      displayName: 'Building and Pushing Users-api'
+
+
+
+
+    
+
+
+
+
+
+    
+
+
+

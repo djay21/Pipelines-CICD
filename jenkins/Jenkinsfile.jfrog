@@ -1,0 +1,69 @@
+
+pipeline {
+
+agent any
+
+environment {
+JFROG_USER="adminq42f"
+JFROG_URL="https://isog.io"
+JFROG_PASS=""
+AWS_ACCESS_KEY_ID="AKI24r45Bq3tHWOG"
+AWS_SECRET_ACCESS_KEY="wlu+/C5oTtpKFgGT"
+GITHUB_REPO_NAME="deployer"
+BRANCH="jdk_wk"
+
+    }
+
+    parameters {
+        choice(name: 'BRANCH', choices: ['jdk_wk'], description: 'Choose branch')
+        password(name: 'JFROG_SERVER_PWD', description: 'Enter JFROG password')
+    }
+
+
+  stages {
+    stage('jfrog scan') {
+    agent any 
+     steps {
+         cleanWs()
+         deleteDir()
+        sh 'echo "Install JFrog CLI"'
+        sh 'git clone git@bitbucket.org:/${GITHUB_REPO_NAME}.git -b $BRANCH'
+        sh """
+        cd $GITHUB_REPO_NAME && git branch && ls -lart
+        """
+        sh ' docker run --rm -v "$(pwd)/${GITHUB_REPO_NAME}":/usr/src/app -w /usr/src/app maven:3.8-openjdk-17 mvn clean package -DAWS_USER=${AWS_ACCESS_KEY_ID} -DAWS_PASSWORD=${AWS_SECRET_ACCESS_KEY}'
+         sh """
+         ls -lart 
+                    jf c add --interactive=false --user $JFROG_USER --password ${JFROG_SERVER_PWD} --url $JFROG_URL
+                    jf s ./ --format=table > jfrog_policy_result.txt
+                    cat jfrog_policy_result.txt
+        """
+        
+      }
+    }
+  }
+ 
+  post {
+    always {
+      echo 'always runs regardless of the completion status of the Pipeline run'
+    }
+    success {
+      echo 'step will run only if the build is successful'
+    }
+    failure {
+      echo 'only when the Pipeline is currently in a "failed" state run, usually expressed in the Web UI with the red indicator.'
+    }
+    unstable {
+      echo 'current Pipeline has "unstable" state, usually by a failed test, code violations and other causes, in order to run. Usually represented in a web UI with a yellow indication.'
+    }
+    changed {
+      echo 'can only be run if the current Pipeline is running at a different state than the previously completed Pipeline'
+    }
+  }
+}
+
+
+
+
+
+

@@ -1,0 +1,53 @@
+stages:       
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME: $IMAGE_NAME
+
+Build-Dockerfile:
+  image: docker:20
+  stage: build  
+  services:
+    - name: docker:20-dind
+      alias: docker
+  variables:
+    JOB_NAME: buildAndUploadImage
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_DRIVER: "overlay2"
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - docker build --tag $IMAGE_NAME:latest .
+    - docker save --output $IMAGE_NAME.tar $IMAGE_NAME:latest
+    - echo "IMAGE Artifact File Name - $IMAGE_NAME.tar"
+    - ls -lrt
+  artifacts:
+    paths:
+      - $IMAGE_NAME.tar
+
+Deploy-to-VM:
+  image: ubuntu
+  stage: deploy 
+  before_script:
+    - apt update -y
+    - apt install openssh-client -y
+    - chmod 400 $SERVER_KEY
+  script:
+    - scp  -o StrictHostKeyChecking=no -i $SERVER_KEY $IMAGE_NAME.tar $SERVER:/home/ubuntu/$IMAGE_NAME.tar
+    - |
+        ssh -o StrictHostKeyChecking=no -i $SERVER_KEY $SERVER /bin/bash -s << EOT
+        docker load --input /home/ubuntu/$IMAGE_NAME.tar
+        docker ps | grep container-$IMAGE_NAME ; 
+        if [[ $? == 0 ]];
+        then
+        echo "** Deleting old container **"
+        docker rm -f container-$IMAGE_NAME 
+        docker run --name container-$IMAGE_NAME -p 80:80 -d $IMAGE_NAME:latest 
+        docker ps
+        else
+        echo -e  "\n ** Starting the container **"
+        docker run --name container-$IMAGE_NAME -p 80:80 -d $IMAGE_NAME:latest 
+        docker ps
+        fi
+        echo -e "\n\n *****  Server is running on http://$(echo $SERVER | cut -d "@" -f 2):80   ******"
+        EOT
